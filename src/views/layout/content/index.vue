@@ -8,7 +8,9 @@
         </div>
     </div>
     <!-- 内容 -->
-    <router-view></router-view>
+    <div class="wrapper">
+        <router-view></router-view>
+    </div>
 </div>
 </template>
 
@@ -24,6 +26,7 @@ export default {
 </script>
 
 <style lang="less" scoped  >
+
 .header {
     background-color: #1e78bf;
     height: 50px;
@@ -35,5 +38,8 @@ export default {
             cursor: pointer;
         }
     }
+}
+.wrapper {
+    padding: 20px;
 }
 </style>

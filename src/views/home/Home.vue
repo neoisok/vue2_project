@@ -4,20 +4,20 @@
       <div class="header">
         <div class="item">
           总销售额
-          <div class='num'>726,520</div>
-          <div class="bottom">今日销售额：3,442</div>
+          <div class='num'>{{totalData.saleTotal | numFormat}}</div>
+          <div class="bottom">{{totalData.sale | numFormat}}</div>
         </div>
         <div class="item">总访问量
-          <div class='num'>836,175</div>
-           <div class="bottom">今日访问量：3,442</div>
+          <div class='num'>{{totalData.viewsTotal | numFormat}}</div>
+           <div class="bottom">今日访问量：{{totalData.views | numFormat}}</div>
         </div>
         <div class="item">总收藏量
-          <div class='num'>126,878</div>
-           <div class="bottom">今日销售额：3,442</div>
+          <div class='num'>{{totalData.collectTotal | numFormat}}</div>
+           <div class="bottom">今日销售额：{{totalData.collect | numFormat}}</div>
         </div>
         <div class="item">总支付量
-          <div class='num'>6,402</div>
-           <div class="bottom">今日支付量：3,442</div>
+          <div class='num'>{{totalData.payTotal | numFormat}}</div>
+           <div class="bottom">今日支付量：{{totalData.pay | numFormat}}</div>
         </div>
       </div>
   
@@ -27,7 +27,10 @@
           <div class="title">月销售额</div>
           <div id="charts" style="width: 100%; height: 300px"></div>
         </div>
-        <div class="area" id="box1">比例分配</div>
+        <div class="area" id="box1">
+          <div class="title">产品销售比例</div>
+          <div id="pie" style="width: 100%; height: 300px;"></div>
+        </div>
       </div>
   
   
@@ -41,13 +44,16 @@
           <div class="text item">
             <el-row>
               <el-col :span="8">
-                <div>111</div>
+                <div class="title">今日订单</div>
+                <div>{{ orderData.curOrderCount | numFormat }}</div>
               </el-col>
               <el-col :span="8">
-               <div>222</div>
+                <div class="title">今日汇总订单</div>
+               <div>{{ orderData.curCollect | numFormat }}</div>
               </el-col>
               <el-col :span="8">
-               <div>333</div>
+                <div class="title">今日金额</div>
+               <div>{{ orderData.curMoney | numFormat }}</div>
               </el-col>
             </el-row>
           </div>
@@ -59,14 +65,16 @@
           <div class="text item">
             <el-row>
               <el-col :span="8">
-                
-                <div>111</div>
+                <div class="title">本月订单数</div>
+                <div>{{ orderData.orderCount | numFormat }}</div>
               </el-col>
               <el-col :span="8">
-               <div>222</div>
+                <div class="title">汇总确认订单</div>
+               <div>{{ orderData.collect | numFormat }}</div>
               </el-col>
               <el-col :span="8">
-               <div>333</div>
+                <div class="title">累计金额</div>
+               <div>{{ orderData.money | numFormat }}</div>
               </el-col>
             </el-row>
           </div>
@@ -87,15 +95,227 @@
   </template>
   
   <script>
+  import * as echarts from 'echarts';
+
   export default {
-  
+    data(){
+      return {
+        totalData: {},//  统计数据
+        // 订单数据
+        orderData: {}
+      }
+
+    },
+    // 组件创建完成后调用 动态请求数据  
+    created() {
+      this.totalInfo()
+      this.orderInfo()
+      this.format();
+    },
+    mounted() {
+       // 基于准备好的dom，初始化echarts实例
+      // var myChart = echarts.init(document.getElementById('charts'));
+      // // 绘制图表
+      // myChart.setOption({
+      //   // title: {
+      //   //   text: 'ECharts 入门示例'
+      //   // },
+      //   tooltip: {},
+      //   xAxis: {
+      //     data: ['衬衫', '羊毛衫', '雪纺衫', '裤子', '高跟鞋', '袜子']
+      //   },
+      //   yAxis: {},
+      //   series: [
+      //     {
+      //       name: '销量',
+      //       type: 'bar', // bar 柱状图 line 折线图 pie 饼图 map地图
+      //       data: [5, 20, 36, 10, 10, 20]
+      //     }
+      //   ]
+      // });
+
+    },
+    methods:{
+      async totalInfo(){
+        let res = await this.$api.totalInfo() 
+        //  let res = await this.$api.totalInfo()
+         console.log('首页统计信息---', res.data.data.list)
+         this.totalData = res.data.data.list
+      },
+      async orderInfo(){
+        let res = await this.$api.orderInfo()
+        //  let res = await this.$api.totalInfo()
+         console.log('首页订单信息---', res)
+         this.orderData = res.data.list
+      },
+      //获取图表动态数据-----------------
+    async format(){
+      let res = await this.$api.format()
+      console.log('获取图表动态数据----',res.data.result.data.sale_money);
+      // console.log(res.data.result.data.sale_money);//[{},{},{}]
+      //折线图 柱状图数据格式：[xx,xx,xx]
+      //获取x轴的数据名称
+      let arr =res.data.result.data.sale_money;
+      let arrx=[],money=[],total=[],pieData=[];
+      arr.forEach(ele => {
+          arrx.push(ele.name)
+          total.push(ele.num)
+          money.push(ele.total_amount)
+          //饼图--对象数据
+          let obj={}
+          obj.name = ele.name;
+          obj.value = ele.total_amount;
+          pieData.push(obj)//[{name:,value:},{},{}]
+      });
+      // console.log(arrx);
+      // console.log(money);
+      // console.log(total);
+      this.line(arrx,money,total)
+      this.pie(pieData)
+    },
+    //绘制图表--折线------------------
+    line(data,money,total) {
+      // 基于准备好的dom，初始化echarts实例
+      var myChart = echarts.init(document.getElementById('charts'));
+      // 绘制图表
+      myChart.setOption({
+        tooltip: {//提示框组件
+          trigger: 'axis',
+        },
+        legend: {},
+        toolbox: {
+          feature: {
+            // dataZoom: {
+            //   yAxisIndex: 'none'
+            // },
+            // restore: {},
+            saveAsImage: {}
+          }
+        },
+        xAxis: {//x轴数据
+          data,
+        },
+        yAxis: {//y轴会自动创建数据
+        },
+        series: [//图表内容
+          {
+            name: '销售额',
+            type: 'line',
+            data:money,
+            smooth: true,//是否平滑曲线显示
+          },
+          {
+            name: '销售量',
+            type: 'bar',
+            data: total,
+          }
+
+        ]
+      });
+    },
+    //绘制饼图
+    pie(pieData) {
+      console.log('饼图数据---',pieData);
+      var myChart = echarts.init(document.getElementById('pie'));
+      var option;
+      option = {
+        tooltip: {
+          trigger: 'item',
+          formatter:'{a}<br/>{b}:{d}%'
+        },
+        legend: {
+          orient: 'vertical',
+          left: 'left'
+        },
+        series: [
+          {
+            name: '产品销售额',
+            type: 'pie',
+            radius: '50%',
+            data:pieData,
+            // data: [//[{},{}]
+            //   { value: 1048, name: '审议' },
+            //   { value: 735, name: '淘宝' },
+            //   { value: 580, name: '京东' }
+            // ],
+            emphasis: {//高亮配置
+              itemStyle: {
+                shadowBlur: 10,
+                shadowOffsetX: 0,
+                shadowColor: 'rgba(0, 0, 0, 0.5)'
+              }
+            }
+          }
+        ]
+      };
+
+      option && myChart.setOption(option);
+    }
+    // line2() {
+      // 基于准备好的dom，初始化echarts实例
+    //   var myChart = echarts.init(document.getElementById('charts'));
+    //   // 绘制图表
+    //   myChart.setOption({
+    //     // title: {//标题组件，包含主标题和副标题
+    //     //   text: 'ECharts 入门示例'
+    //     // },
+    //     tooltip: {//提示框组件
+    //       trigger: 'axis',
+    //       //提示框浮层内容格式器，支持字符串模板和回调函数两种形式。
+    //       // formatter:'{a}-{b}-{c}'
+    //     },
+    //     xAxis: {//x轴数据
+    //       data: ['衬衫', '羊毛衫', '雪纺衫', '裤子', '高跟鞋', '袜子'],
+    //       // axisLine: {//坐标轴轴线相关设置
+    //       //   lineStyle: {
+    //       //     color: 'skyblue',//坐标轴线线的颜色
+    //       //   }
+    //       // },
+    //       // axisTick: {//坐标轴刻度相关设置
+    //       //   alignWithLabel: true
+    //       // }
+    //     },
+    //     yAxis: {//y轴会自动创建数据
+    //     },
+    //     series: [//图表内容
+    //       {
+    //         name: '销量',
+    //         type: 'line',//bar 柱状图  line 折线图  pie饼图  map地图
+    //         data: [5, 20, 66, 10, 10, 20],
+    //         // label: {//图形上的文本标签，可用于说明图形的一些数据信息，比如值，名称等
+    //         //   show: true
+    //         // },
+    //         // labelLine: {
+    //         //   lineStyle: {
+    //         //     color: '#ff5555'
+    //         //   }
+    //         // },
+    //         // itemStyle: {
+    //         //   color: '#ff5555'
+    //         // },
+    //         // lineStyle: {
+    //         //   color: '#ff5555'
+    //         // },
+    //         // smooth: true,//是否平滑曲线显示
+    //       }
+    //     ]
+    //   });
+    // }
+    },
+    filters: {
+      //数字格式化 使用方法：{{totalData.viewsTotal | numFormat}}
+      numFormat(val) {
+        if(!val) return;
+        return val.toLocaleString()
+      }
+    }
   }
   </script>
   
   <style lang="less" scoped>
-  .home {
-    margin: 10px;
-  }
+  // .home {
+  //   margin: 10px;
+  // }
   .header {
     display: flex;
     padding-right: 30px;
@@ -163,7 +383,7 @@
   //内容
   
   .home-footer {
-    display: flex;
+    display: flex; // 这个 flex是干啥的？？ todo
     padding-left: 20px;
     margin-bottom: 20px;
     .box-card {
@@ -175,4 +395,20 @@
     }
   }
   
+  .item{
+    text-align: center;
+    font-size: 24px;
+    color: #333;
+    .el-col{
+      border-right: 1px solid #eee;
+
+    }
+    .el-col:last-child{
+      border-right: none;
+    }
+    .title{
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+  }
   </style>
